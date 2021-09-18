@@ -1,4 +1,4 @@
-function RatesCells
+function lookatrates(input_file)
 
 %% 
 % Calculate best estimates and errors of the element-specific (k) and
@@ -21,17 +21,15 @@ function RatesCells
 % Polerecky et al. submitted to Frontiers in Microbiology.
 % Written by Lubos Polerecky, 2020-06-07, Utrecht University
 
-%% default input xlsx filename
+%% default input data folder and xlsx filename
 if nargin<1
-    input_xlsx_filename='DataCells3.xlsx';
+    input_xlsx_filename='DataCells1.xlsx';
+else
+    input_xlsx_filename=input_file;
 end
+input_data_folder = 'data'; % sub-folder of the main matlab file
 
-%% default output xlsx filename
-if nargin<2
-    output_xlsx_filename = 'ResultsCells3.xlsx';
-end
-
-%% default values of additional parameters
+%% default values of calculation parameters
 
 % number of simulations per cell to determine kC and its error
 Nsimul = 2000;
@@ -45,7 +43,7 @@ fign = 1;
 pause_for_each_cell = 1;
 
 % export results for each cell as a png file
-export_graphs_as_png = 0;
+export_graphs_as_png = 1;
 
 % if you really want to see *every individual model prediction*, set this
 % value to 1 (useful for *detailed* debugging, but not when you just want
@@ -61,9 +59,14 @@ display_individual_results = 0;
 %% load experimental data
 % Ensure that the formatting of the xlsx file is the same as in the
 % default input file.
-fprintf(1,'Loading data from %s\n',input_xlsx_filename);
-Tin = readtable(input_xlsx_filename)
+in_file = [input_data_folder filesep input_xlsx_filename];
+fprintf(1,'Loading data from %s\n',in_file);
+Tin = readtable(in_file)
 fprintf(1,'Done\n');
+
+% generate output filename
+[~, b, c] = fileparts(input_xlsx_filename);
+output_xlsx_filename = [input_data_folder filesep b '-' datestr(now,'HH-MM-SS') c];
 
 % change values in the avgVcell that are not numbers (because the values
 % cannot be constrained from the measured nanoSIMS data) to NaN
@@ -433,20 +436,11 @@ T
 pause(0.1);
 
 %% export results in an xls file
-fprintf(1,'Calculation done.\nExporting output data to %s\n',output_xlsx_filename);
-if isfile(output_xlsx_filename)
-    [~, b, c] = fileparts(output_xlsx_filename);
-    output_xlsx_filename_bak = [b '-' datestr(now,'HH-MM-SS') c];
-    st = movefile(output_xlsx_filename, output_xlsx_filename_bak);
-    if st
-        fprintf(1,'Output file %s existed.\nBackup made in %s.\n', ...
-            output_xlsx_filename, output_xlsx_filename_bak);
-    end
-end
-writetable(Tin,output_xlsx_filename, 'Sheet', 'input_data');
+% first, copy the content of the input file to the output file, then add
+% the rates as a new sheet
+copyfile(in_file,output_xlsx_filename,'f');
 writetable(T,output_xlsx_filename, 'Sheet', 'rates');
-fprintf(1,'Current output saved to %s\n',output_xlsx_filename);
-fprintf(1,'All done.\n');
+fprintf(1,'Rates exported in %s\n',output_xlsx_filename);
 
 end % end of the main function
 
