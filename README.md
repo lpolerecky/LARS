@@ -4,6 +4,9 @@
 
 **Look@Rates** - a Matlab script for calculating *substrate assimilation rates* in cells from their isotopic composition determined by nanoSIMS.
 
+
+WORK IN PROGRESS.
+
 ## Input data in a spreadsheet
 
 Input data needs to be organized in a spreadsheet. A template spreadsheet is available in the folder *templates*.
@@ -21,3 +24,5 @@ The required data include the parameters listed in the table below. Each row cor
 | **avgVcell** | Average biovolume of the cell from the same species as the measured cell, &#10216;V&#10217; (in &#956;m<sup>3</sup>). The values of &#961; and &#10216;V&#10217; are used to calculate the average C content of the cell as &#10216;C&#10217; = &#961;&#183;&#10216;V&#10217;. Note that the calculated value must represent the C content of the cell averaged across the entire cell cycle. Thus, it can be determined by measuring bulk C content and cell counts for a population of cells with perfectly unsynchronized cell cycles, but not from similar measurements for a population with partially synchronized cells. Alternatively, it can be obtained by measuring the biovolume or carbon content of dividing cells (V<sub>max</sub> or C<sub>max</sub>, respectively), as explained in the manuscrit (Approach 3A).|
 | **Vcell** | Biovolume of the measured cell, V (in &#956;m<sup>3</sup>). This value is relevant if Approach B or C is used to calculate the rate (see explanation for **dVcell**). Specifically, the carbon content of the measured cell is calculated as C = &#961;&#183;V. Ideally, V is calculated from the size and shape of the cell determined from the same nanoSIMS image as the atom fraction, x. Note that V must be such that the cell cycle stage, calculated from the biovolume as s = V/(V<sub>max</sub>/2)-1, ends up between 0 and 1. In this calculation, V<sub>max</sub> is calculated from the average biovolume as V<sub>max</sub> = &#10216;V&#10217; &#183; 2 &#183; ln(2). If the entered combination of values of &#10216;V&#10217; and V yields s<0 or s>1, the calculation will automatically change V to the value of &#10216;V&#10217;. |
 | **dVcell** | Error (uncertainty) of the measured cell’s biovolume, &#916;V (in &#956;m<sup>3</sup>). |
+
+WORK IN PROGRESS.
