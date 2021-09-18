@@ -1,5 +1,5 @@
 # LARS
 
-<img src="man/figures/LARS-logo.png" width="100">
+<img src="man/figures/LARS-logo.png">
 
-Look@Rates - a Matlab script for calculating substrate assimilation rates in cells based on their isotopic composition determined by nanoSIMS.
+*Look@Rates* - a Matlab script for calculating *substrate assimilation rates* in cells from their isotopic composition determined by nanoSIMS.
