@@ -88,7 +88,7 @@ exp_data = [table2array(Tin(:,1:6)) t7num table2array(Tin(:,8:9))];
 comments = table2cell(Tin(:,10));
 
 % allocate matrix for the output
-T = zeros(size(exp_data,1), 16);
+T = zeros(size(exp_data,1), 19);
 
 if ~isfolder('png'), mkdir('png'); end
 
@@ -175,6 +175,7 @@ for ind=1:size(exp_data,1)
         ndiv0 = zeros(size(xSEt_rnd));
         ndiv1 = zeros(size(xSEt_rnd));
         Ca2Ci = zeros(size(xSEt_rnd));
+        Ca2Cf = zeros(size(xSEt_rnd));
         fac   = zeros(size(xSEt_rnd));
         Nsimul2 = length(Crand);
         x13Ct100_0 = nan(100, Nsimul2);
@@ -231,14 +232,15 @@ for ind=1:size(exp_data,1)
                 s1_ini_rnd(j) = St1(1);
                 ndiv1(j) = size(St1,2)-1;
                 
-                % relate the amount of assimilated C to the initial C
-                % content of the cell
+                % relate the amount of assimilated C to the initial and
+                % final C content of the cell
                 Ca2Ci(j) = rC_C(j) * t_incubation / ( (St0(1)+1)*Cmax/2 );
+                Ca2Cf(j) = rC_C(j) * t_incubation / ( (St0(end)+1)*Cmax/2 );
                 
                 % relate rC_C to rC_nondiv
                 fac(j) = rC_C(j) / rC_nondiv(j);
                    
-                %% older code, now abondened
+                %% older code, now abandened
                 %% zero-order kinetics of C assimilation
                 if 0 && model==0
                     % initial estimate of the cell-specific C assimilation
@@ -269,6 +271,7 @@ for ind=1:size(exp_data,1)
                     kC_div(j)     = 1/t_incubation*log((1+St(end))/(1+St(1))*2^ndiv(j)); % averaged over SIP incubation, dividing cell!!
                 end
 
+                %% older code, now abandened
                 %% first-order kinetics of C assimilation
                 if 0 && model==1
                     % cell-specific C assimilation rate (average over cell cycle)
@@ -290,9 +293,10 @@ for ind=1:size(exp_data,1)
                     % model (because r varies in time), one can evaluate
                     % its average values
                     rC_avg(j)     = rC_best; % averaged over cell cycle!!
-                    rC_div(j)     = 1/t_incubation * (Cfj - Cij + ndiv(j)*Cmax/2); % averaged over SIP incubation, dividing cell!!                    
-                    
+                    rC_div(j)     = 1/t_incubation * (Cfj - Cij + ndiv(j)*Cmax/2); % averaged over SIP incubation, dividing cell!!                                        
                 end
+                
+                %% end of older (abandoned) code
                 
                 %% store x13Ct and St interpolated in 100 data points
                 % these values will be used later for plotting histograms
@@ -320,6 +324,7 @@ for ind=1:size(exp_data,1)
                 s0_ini_rnd(j)   = NaN;
                 s1_ini_rnd(j)   = NaN;
                 Ca2Ci(j)        = NaN;
+                Ca2Cf(j)        = NaN;
                 fac(j)          = NaN;
             end
 
@@ -358,9 +363,10 @@ for ind=1:size(exp_data,1)
         T(ind,15) = mean(ndiv0,'omitnan');
         T(ind,16) = mean(ndiv1,'omitnan');
         %% important ratios
-        T(ind,17) = mean(Ca2Ci,'omitnan');
-        T(ind,18) = mean(fac,'omitnan');        
-
+        T(ind,17) = mean(fac,'omitnan');        
+        T(ind,18) = mean(Ca2Ci,'omitnan');
+        T(ind,19) = mean(Ca2Cf,'omitnan');
+        
         %% make a pause, if requested
         if pause_for_each_cell
             fprintf(1,'Summary of results for cell %d displayed in figure %d.\nComment: %s\n',ind,fign,comments{ind});
@@ -393,27 +399,22 @@ for ind=1:size(exp_data,1)
         %% average over the cell cycle
         T(ind,1) = kC;
         T(ind,2) = dkC;
-        T(ind,3) = NaN;
-        T(ind,4) = NaN;
-        T(ind,5) = NaN;
+        T(ind,3:5) = NaN;
         %% instantaneous value at the end of SIP incubation, dividing cell
         T(ind,6) = rC_B;
         T(ind,7) = drC_B;
         T(ind,8) = T(ind,7)/T(ind,6);
         %% average values during the SIP incubation, dividing cell
-        T(ind,9)  = NaN;
-        T(ind,10) = NaN;
+        T(ind,9:10)  = NaN;
         T(ind,11) = T(ind,10)/T(ind,9);
         %% average values over the SIP incubation, non-dividing cell
         T(ind,12) = rC_nondiv;
         T(ind,13) = drC_nondiv;
         T(ind,14) = T(ind,13)/T(ind,12);
         %% avg number of cell divisions during SIP incubation
-        T(ind,15) = 0; % default
-        T(ind,16) = 0; % default
+        T(ind,15:16) = 0; % default
         %% important ratios
-        T(ind,17) = NaN;
-        T(ind,18) = NaN;
+        T(ind,17:19) = NaN;
         
     end
 
@@ -426,7 +427,7 @@ T = array2table(T, 'VariableNames', ...
      'r_C', 'dr_C', 'CV_C', ...% average over SIP, dividing cell
      'r_nondiv', 'dr_nondiv', 'CV_nondiv', ... % average over SIP, non-dividing cell
      'Ndiv0', 'Ndiv1', ... % number of cell divisions during SIP
-     'Ca2Ci', 'f'}); % important ratios
+     'ratio', 'Ea/Ei', 'Ea/Ef'}); % important ratios
 
 %% display results in the console window
 fprintf(1,'EXPERIMENTAL VALUES:\n');
