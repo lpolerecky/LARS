@@ -13,7 +13,7 @@ Input data needs to be organized in a spreadsheet. A template spreadsheet is ava
 
 **Look@Rates** reads input data from an Excel spreadsheet (xlsx). The required data are organized in columns, with rows corresponding to individual cells. The required data are described in [Table 1](man/figures/LARS_input_data_format.docx)
 
-Look@Rates exports calculated rates as a new sheet (called “rates”) in the input Excel spreadsheet (xlsx). The output values are organized in columns, with rows corresponding to individual cells. Table below describes the output data. 
+**Look@Rates** exports calculated rates as a new sheet (called *rates*) in the input Excel spreadsheet (xlsx). The output values are organized in columns, with rows corresponding to individual cells. The output data are described in [Table 2](man/figures/LARS_output_data_format.docx)
 
 
 WORK IN PROGRESS.
