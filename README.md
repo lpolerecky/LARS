@@ -10,19 +10,19 @@
 
 1. You need Matlab to run **Look@Rates**. The core Matlab binaries should be sufficient, no need for extra toolboxes.
 
-2. Download ``lookatrates.m`` from the ``matlab`` folder (see list of files above) and save it on your computer.
+2. Download ``lookatrates.m`` from the [matlab](matlab/) folder (see list of files above) and save it on your computer.
 
 3. Create a subfolder called ``data`` in the same folder where you saved ``lookatrates.m``. This is where the input ``xlsx`` files are expected to be and where the output will be exported.
 
 ## Input data
 
-**Look@Rates** reads input data from a spreadsheet (``xlsx`` format). The required data are organized in columns, with rows corresponding to individual cells (see an example below). Description of the required data is provided in **Table 1** available in the folder ``manual``. A **template** spreadsheet (called ``DataCells1.xlxs``) is available in the same folder.
+**Look@Rates** reads input data from a spreadsheet (``xlsx`` format). The required data are organized in columns, with rows corresponding to individual cells (see an example below). Description of the required data is provided in **Table 1** available in the folder [manual](manual/). A **template** spreadsheet (called ``DataCells1.xlxs``) is available in the same folder.
 
 <img src="manual/LARS-inputdata.png" width=800>
 
 ## Output data 
 
-**Look@Rates** exports calculated rates as a new sheet (called ``rates``) in the input spreadsheet (``xlsx`` format). The output values are organized in columns, with rows corresponding to individual cells (see an example below). Description of the output data is provided in **Table 2** available in the folder ``manual``.
+**Look@Rates** exports calculated rates as a new sheet (called ``rates``) in the input spreadsheet (``xlsx`` format). The output values are organized in columns, with rows corresponding to individual cells (see an example below). Description of the output data is provided in **Table 2** available in the folder [manual](manual/).
 
 <img src="manual/LARS-outputdata.png" width=800>
 
@@ -55,7 +55,7 @@
 
 ## Calculation approach
 
-Consult the manuscript and **Table 1** ([manual](../../manual/)) to become familiar with the meaning of the different parameters and variables used in the description below. Note that the description assumes assimilation of carbon (C), but the calculation method is applicable to any other element. 
+Consult the manuscript and **Table 1** ([manual](manual/)) to become familiar with the meaning of the different parameters and variables used in the description below. Note that the description assumes assimilation of carbon (C), but the calculation method is applicable to any other element. 
 
 The general approach employed in **Look@Rates** is based on a Monte-Carlo method. It proceeds according to the following steps.
 
@@ -102,12 +102,12 @@ The general approach employed in **Look@Rates** is based on a Monte-Carlo method
 
 9. Steps 1-8 are repeated for all cells in the input file.
 
-10. Mean and SD values of the calculated rates are exported. Consult **Table 2** ([manual](../../manual/)) for the description of the exported values.
+10. Mean and SD values of the calculated rates are exported. Consult **Table 2** ([manual](manual/)) for the description of the exported values.
 
 ## Important notes
 
-1. If &#10216;C&#10217; is known but C is unknown, only Approach A is used to calculate r. This happens when the spreadsheet-cell ``avgVcell`` contains a non-zero value and the spreadsheet-cell ``Vcell`` is empty.
+1. If &#10216;C&#10217; is known but C is unknown, only Approach A is used to calculate r. This happens when the spreadsheet-cell ``avgVcell`` contains a positive value and the spreadsheet-cell ``Vcell`` is empty.
 
-- If C is known but &#10216;C&#10217; is unknown, only Approach B and NON-DIV are used to calculate r. This happens when the spreadsheet-cell ``Vcell`` contains a non-zero value and the spreadsheet-cell ``avgVcell`` is empty.
+- If C is known but &#10216;C&#10217; is unknown, only Approach B and NON-DIV are used to calculate r. This happens when the spreadsheet-cell ``Vcell`` contains a positive value and the spreadsheet-cell ``avgVcell`` is empty.
 
-- If both C and &#10216;C&#10217; are known, r is calculated by all approaches. This happens when both spreadsheet-cells ``Vcell`` and ``avgVcell`` contain a non-zero value.
+- If both C and &#10216;C&#10217; are known, r is calculated by all approaches. This happens when both spreadsheet-cells ``Vcell`` and ``avgVcell`` contain a positive value.
