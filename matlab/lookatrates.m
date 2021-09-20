@@ -1,64 +1,84 @@
-function lookatrates(input_file)
-
-%% 
-% Calculate best estimates and errors of the element-specific (k) and
-% cell-specific (r) rates of element assimilation by cells based on their
+function lookatrates(varargin)
+% Calculate best estimate and uncertainty of the element-specific (k) and
+% cell-specific (r) rate of element assimilation by cells based on their
 % isotopic composition measured by nanoSIMS.
-%%
-% Input is loaded from the spreadsheet input_xlsx_filename (see below).
-% Output is written to the spreadsheet output_xlsx_filename (see below).
-%%
-% Rates are calculated assuming exponential cell growth or linear cell
-% growth. In the latter case, the calculation uses approach 3A and 3B
-% when the value of the parameter dVcell in the input spreadsheet is equal
-% to 0 and greater than 0, respectively.
-%%
-% In this function it is assumed that C is the measured element. However,
-% the function is applicable for any other element. 
-
-%%
-% Function is provided as Supplementary Material for the manuscript by
-% Polerecky et al. submitted to Frontiers in Microbiology.
+%
+% Theory behind the calculation method is explained in Polerecky et al. (submitted to Frontiers in Microbiology).
+% Calculation approach is explained in https://github.com/lpolerecky/LARS.
+%
+% USAGE:
+% lookatrates(Input_file, Nsimul, pause_for_each_cell, export_graphs_as_png);
+%
+% INPUT PARAMETERS:
+% Input_file = name of the xlsx input file (assumed to be in the data subfolder)
+% Nsimul = number of Monte-Carlo simulations for each cell (2000 or more)
+% pause_for_each_cell = pause after calculating rate for each cell (0/1)
+% export_graphs_as_png = export calculation results as PNG (0/1)
+% Use [] if you want to use a default value for the argument.
+%
+% EXAMPLES:
+% lookatrates; % all input parameters will have default values
+% lookatrates('DataCells1.xlsx', 5000, 1, 1);
+% lookatrates('DataCells1.xlsx', 2000, [], 0);
+% lookatrates('DataCells1.xlsx');
+%
 % Written by Lubos Polerecky, 2020-06-07, Utrecht University
 
-%% default input data folder and xlsx filename
-if nargin<1
-    input_xlsx_filename='DataCells1.xlsx';
-else
-    input_xlsx_filename=input_file;
+% default function parameters (see below for explanation)
+default_parameters={'DataCells1.xlsx', 2000, 1, 1};
+
+% fill in parameters specified by the user
+for i=1:4
+    fmt='WARNING: %s not specified. Using a default value of %d.\n';
+    switch i
+        case 1, varname='Input_file'; fmt='WARNING: %s not specified. Using a default value of %s.\n';
+        case 2, varname='Nsimul';
+        case 3, varname='pause_for_each_cell';
+        case 4, varname='export_graphs_as_png';
+    end
+    if length(varargin)>=i
+        if ~isempty(varargin{i})
+            default_parameters{i} = varargin{i};
+        else
+            fprintf(1,fmt, varname, default_parameters{i});
+        end
+    else
+        fprintf(1,fmt, varname, default_parameters{i});
+    end
 end
+
+%% update parameters and flags that determine the actions below
+
+% name of the input file (assumed to be in the data subfolder)
+input_xlsx_filename=default_parameters{1};
 input_data_folder = 'data'; % sub-folder of the main matlab file
 
-%% default values of calculation parameters
-
 % number of simulations per cell to determine kC and its error
-Nsimul = 2000;
-
-% figure number where the output will be displayed
-fign = 1;
+Nsimul = default_parameters{2};
 
 % make a pause to be able to check the results for each cell (useful when
 % you want to ponder about the result for each individual cell, but not
-% when you just want to get the results)
-pause_for_each_cell = 1;
+% when you just want to get the results) 
+pause_for_each_cell = default_parameters{3};
 
 % export results for each cell as a png file
-export_graphs_as_png = 1;
+export_graphs_as_png = default_parameters{4};
+
+% number of the figure where the output will be displayed
+fign = 1;
 
 % if you really want to see *every individual model prediction*, set this
 % value to 1 (useful for *detailed* debugging, but not when you just want
 % to get the results)
 display_individual_results = 0;
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Let's go! 
-%% Modify below only if you know what you are doing.
+%% Let's go! Please do not modify below unless you know what you are doing.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% load experimental data
-% Ensure that the formatting of the xlsx file is the same as in the
-% default input file.
+% It is up to the user to ensure that the formatting of the xlsx file is
+% the same as in the default input file.
 in_file = [input_data_folder filesep input_xlsx_filename];
 fprintf(1,'Loading data from %s\n',in_file);
 Tin = readtable(in_file)
@@ -68,8 +88,9 @@ fprintf(1,'Done\n');
 [~, b, c] = fileparts(input_xlsx_filename);
 output_xlsx_filename = [input_data_folder filesep b '-' datestr(now,'HH-MM-SS') c];
 
-% change values in the avgVcell that are not numbers (because the values
-% cannot be constrained from the measured nanoSIMS data) to NaN
+% change values in avgVcell and Vcell that are not numbers (because the
+% values cannot be constrained by experimental data) to NaN
+if 0
 t7=table2array(Tin(:,7));
 t7num = NaN(size(t7));
 if iscell(t7)
@@ -82,15 +103,19 @@ if iscell(t7)
 else
     t7num = t7;
 end
-
 % convert data to an array
 exp_data = [table2array(Tin(:,1:6)) t7num table2array(Tin(:,8:9))];
 comments = table2cell(Tin(:,10));
+end
+
+exp_data = table2array(Tin(:,1:9));
+comments = table2cell(Tin(:,10));
+
 
 % allocate matrix for the output
 T = zeros(size(exp_data,1), 19);
 
-if ~isfolder('png'), mkdir('png'); end
+if ~isfolder('png'), mkdir('png'); fprintf(1,'Subfolder png created.\n'); end
 
 %% process input line by line
 for ind=1:size(exp_data,1)
@@ -113,7 +138,7 @@ for ind=1:size(exp_data,1)
     
     avgCcell = avgVcell * rhoC;
     
-    if ~isnan(avgCcell)
+    if ~isnan(avgCcell) && ~isnan(Ccell)
         
         % max C content, i.e., when the cell is dividing 
         Cmax = avgCcell*2*log(2); % zero-order kinetics model
@@ -239,66 +264,8 @@ for ind=1:size(exp_data,1)
                 
                 % relate rC_C to rC_nondiv
                 fac(j) = rC_C(j) / rC_nondiv(j);
-                   
-                %% older code, now abandened
-                %% zero-order kinetics of C assimilation
-                if 0 && model==0
-                    % initial estimate of the cell-specific C assimilation
-                    % rate is based on the exponential model (i.e., 1-order
-                    % kinetics) of C assimilation 
-                    rC_guess = -1/t_incubation * log(1-xSEtj) * avgCcell;
-
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    % this is where the rate is found by approach B, which
-                    % accounts for cell division!
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    rC_best = fzero(fun,rC_guess);
-
-                    % store the cell-specific rates
-                    rC_avg(j)    = rC_best;     % averaged over cell cycle!!
-                    rC_div(j)    = rC_best;     % averaged over SIP incubation, dividing cell!!
-
-                    % predict and store the initial cell-cycle stage
-                    [~, x13Ct, t, ~, St] = x13C_time0(rC_best, s_endj, avgCcell, t_incubation, xSEtj);
-                    s_ini_rnd(j) = St(1);
-                    ndiv(j) = size(St,2)-1; % number of cell divisions during SIP incubation
-                    
-                    % although the carbon-specific rate, k, is not a
-                    % meaningful parameter for the zero-order kinetics
-                    % model (because k varies in time), one can evaluate
-                    % its average values
-                    kC_avg(j)     = rC_best/avgCcell; % averaged over cell cycle!!
-                    kC_div(j)     = 1/t_incubation*log((1+St(end))/(1+St(1))*2^ndiv(j)); % averaged over SIP incubation, dividing cell!!
-                end
-
-                %% older code, now abandened
-                %% first-order kinetics of C assimilation
-                if 0 && model==1
-                    % cell-specific C assimilation rate (average over cell cycle)
-                    rC_best = -1/t_incubation * log(1-xSEtj) * avgCcell;
-
-                    % predict and store the initial cell-cycle stage
-                    [~, x13Ct, t, ~, St] = x13C_time1(rC_best, s_endj, avgCcell, t_incubation, xSEtj);
-                    s_ini_rnd(j) = St(1);
-                    ndiv(j) = size(St,2)-1; % number of cell divisions during SIP incubation
-                    Cfj = (s_endj + 1)*Cmax/2; % C content of the measured cell
-                    Cij = (s_ini_rnd(j) + 1)*Cmax/2; % true (recovered) initial C content of the measured cell
-
-                    % store the carbon-specific rates
-                    kC_avg(j)    = rC_best/avgCcell;  % averaged over cell cycle!!
-                    kC_div(j)    = rC_best/avgCcell;  % averaged over SIP incubation, dividing cell!!
-
-                    % although the cell-specific rate, r, is not a
-                    % meaningful parameter for the first-order kinetics
-                    % model (because r varies in time), one can evaluate
-                    % its average values
-                    rC_avg(j)     = rC_best; % averaged over cell cycle!!
-                    rC_div(j)     = 1/t_incubation * (Cfj - Cij + ndiv(j)*Cmax/2); % averaged over SIP incubation, dividing cell!!                                        
-                end
-                
-                %% end of older (abandoned) code
-                
-                %% store x13Ct and St interpolated in 100 data points
+                                   
+                % store x13Ct and St interpolated in 100 data points
                 % these values will be used later for plotting histograms
                 [t100, x13Ct100, St100] = interpol_CtSt(t0, x13Ct0, St0);
                 x13Ct100_0(:,j) = x13Ct100;
@@ -377,7 +344,7 @@ for ind=1:size(exp_data,1)
 
         %% export the graphs for the current cell as PNG
         if export_graphs_as_png
-           [~,b,~] = fileparts(output_xlsx_filename);
+           [~,b,~] = fileparts(input_xlsx_filename);
            outpng = sprintf('png%c%s_%03d.png', filesep, b, ind);
            print(fign,outpng, '-dpng','-r150');
            fprintf(1,'Graphs exported in %s\n\n',outpng);
@@ -385,29 +352,54 @@ for ind=1:size(exp_data,1)
     
     else
         
-        % when avgVcell is not available, we can only estimate rC by
-        % approach B and kC by step 2; additionally, we calculate rC by the
-        % approach commonly applied in the literature
+        % estimate kC by step 2;
         xSEt        = (xt-xini)/(xS-xini);
         dxSEt       = dxt/(xS-xini);
         kC          = -1/t_incubation * log(1-xSEt);
         dkC         = 1/t_incubation * dxSEt / (1-xSEt);
-        rC_B        = kC * Ccell;
-        drC_B       = (dxSEt/xSEt + dCcell/Ccell) * rC_B; % error propagation formula
-        rC_nondiv   = xSEt/t_incubation * Ccell;
-        drC_nondiv  = (dxSEt/xSEt + dCcell/Ccell) * rC_nondiv; % error propagation formula
-        %% average over the cell cycle
+        
+        % if avgCcell is available, estimate r_A
+        if ~isnan(avgCcell)
+            rC_A      = kC * avgCcell;
+            drC_A     = dxSEt/xSEt * rC_A; % error propagation formula
+            rC_B      = NaN;
+            drC_B     = NaN;
+            rC_nondiv  = NaN;
+            drC_nondiv = NaN;
+        end
+        
+        % if Ccell is available, estimate r_B and r_nondiv
+        if ~isnan(Ccell)
+            rC_A    = NaN;
+            drC_A   = NaN;
+            rC_B    = kC * Ccell;
+            drC_B   = sqrt((dxSEt/xSEt)^2 + (dCcell/Ccell)^2) * rC_B; % error propagation formula
+            rC_nondiv  = xSEt/t_incubation * Ccell;
+            drC_nondiv = sqrt((dxSEt/xSEt)^2 + (dCcell/Ccell)^2) * rC_nondiv; % error propagation formula            
+        end
+           
+        % if Ccell is available, estimate r_B and r_nondiv
+        if isnan(Ccell) && isnan(avgCcell)
+            rC_A    = NaN;
+            drC_A   = NaN;
+            rC_B    = NaN;
+            drC_B   = NaN;
+            rC_nondiv  = NaN;
+            drC_nondiv = NaN;
+        end
+        
+        %% average across the cell cycle
         T(ind,1) = kC;
         T(ind,2) = dkC;
-        T(ind,3:5) = NaN;
-        %% instantaneous value at the end of SIP incubation, dividing cell
+        T(ind,3:4) = [rC_A, drC_A];
+        T(ind,5) = T(ind,4)/T(ind,3);        
+        %% instantaneous value at the end of SIP incubation, dividing cell, zero-order kinetics
         T(ind,6) = rC_B;
         T(ind,7) = drC_B;
         T(ind,8) = T(ind,7)/T(ind,6);
-        %% average values during the SIP incubation, dividing cell
-        T(ind,9:10)  = NaN;
-        T(ind,11) = T(ind,10)/T(ind,9);
-        %% average values over the SIP incubation, non-dividing cell
+        %% average values during the SIP incubation, dividing cell, first-order kinetics
+        T(ind,9:11)  = NaN;
+        %% average values over the SIP incubation, non-dividing cell, zero-order kinetics
         T(ind,12) = rC_nondiv;
         T(ind,13) = drC_nondiv;
         T(ind,14) = T(ind,13)/T(ind,12);
@@ -441,13 +433,13 @@ pause(0.1);
 % the rates as a new sheet
 copyfile(in_file,output_xlsx_filename,'f');
 writetable(T,output_xlsx_filename, 'Sheet', 'rates');
-fprintf(1,'Rates exported in %s\n',output_xlsx_filename);
+fprintf(1,'Rates exported in %s (sheet rates).\n',output_xlsx_filename);
 
-end % end of the main function
+end % end of lookatrates function
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% auxillary functions
+%% auxillary functions used above
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -754,8 +746,8 @@ plot(t_incubation*[1;1], xSEt+dxSEt*[1; -1], 'r-','LineWidth',2);
 % set axes properties
 set(gca,'ydir','normal')
 xlabel('t');
-ylabel('x_S^E(t), s(t)');
-legend({'x_S^E(t), 0-order', 'x_S^E(t), 1-order', 's(t)], 0-order', 'experimental value'},...
+ylabel('x_S^E, s');
+legend({'x_S^E, 0-order', 'x_S^E, 1-order', 's, 0-order', 'experimental value'},...
     'location','southeast');
 ylim([0 1]);
 tit=sprintf('Full prediction');
@@ -764,15 +756,15 @@ title(tit)
 s2=subplot(2,3,2);
 hold off;
 plot(xt_rnd,Crand,'bo');
-xlabel('x(13C)_{cell}')
-ylabel('C_{end}')
+xlabel('x_j')
+ylabel('C_j')
 tit=sprintf('Experimental values (C-nondiv = %.2f +/- %.2f)', mean(Crand_nondiv), std(Crand_nondiv));
 title(tit)
 
 s3=subplot(2,3,3);
 histogram2(xt_rnd,Crand,'DisplayStyle','tile','ShowEmptyBins','on','EdgeAlpha',0,'NumBins',[30 30],'Normalization','pdf');
-xlabel('x(13C)_{cell}')
-ylabel('C_{end}')
+xlabel('x_j')
+ylabel('C_j')
 title('Experimental values')
 
 s4=subplot(2,3,4);
@@ -802,10 +794,10 @@ histogram(rC_C,'EdgeColor',[1 0 1],'FaceColor',0.9*[1 1 1],'Normalization','pdf'
 histogram(rC_nondiv,'EdgeColor',[0 1 0],'FaceColor',0.9*[1 1 1],'Normalization','pdf');
 xlabel('r');
 ylabel('count');
-leg1 = sprintf('avg-cell-cycle: %.4f+/-%.4f',mean(rC_A,'omitnan'),std(rC_A,'omitnan'));        
-leg2 = sprintf('end-SIP: %.4f+/-%.4f',mean(rC_B,'omitnan'),std(rC_B,'omitnan'));
-leg3 = sprintf('avg-SIP-div: %.4f+/-%.4f',mean(rC_C,'omitnan'),std(rC_C,'omitnan'));
-leg4 = sprintf('avg-SIP-nondiv: %.4f+/-%.4f',mean(rC_nondiv,'omitnan'),std(rC_nondiv,'omitnan'));
+leg1 = sprintf('avg-cell-cycle: %.3f+/-%.3f',mean(rC_A,'omitnan'),std(rC_A,'omitnan'));        
+leg2 = sprintf('end-SIP: %.3f+/-%.3f',mean(rC_B,'omitnan'),std(rC_B,'omitnan'));
+leg3 = sprintf('avg-SIP-div: %.3f+/-%.3f',mean(rC_C,'omitnan'),std(rC_C,'omitnan'));
+leg4 = sprintf('avg-SIP-nondiv: %.3f+/-%.3f',mean(rC_nondiv,'omitnan'),std(rC_nondiv,'omitnan'));
 tit=sprintf('Predicted rate');
 title(tit)
 legend({leg1,leg2,leg3,leg4},'location','northwest','box','off','FontSize',10)
