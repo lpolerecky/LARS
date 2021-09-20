@@ -14,11 +14,11 @@
 
 3. Create a subfolder called ``data`` in the same folder where you saved ``lookatrates.m``. This is where the input ``xlsx`` files are expected to be and where the output will be exported.
 
-4. A faster approach may be to click on the green ``Code`` bottom (at the top of this page) and download the zip-file of the entire LARS project, including the Matlab code, documentation, and the template input spreadsheet.
+4. A faster approach may be to click on the green ``Code`` button (at the top of this page) and download the zip-file of the entire LARS project, including the Matlab code, documentation, and the template input spreadsheet.
 
 ## Input data
 
-**Look@Rates** reads input data from a spreadsheet (``xlsx`` format). The required data are organized in columns, with rows corresponding to individual cells (see an example below). Description of the required data is provided in **Table 1** available in the folder [manual](manual/). A **template** spreadsheet (called ``DataCells1.xlxs``) is available in the [d folder.
+**Look@Rates** reads input data from a spreadsheet (``xlsx`` format). The required data are organized in columns, with rows corresponding to individual cells (see an example below). Description of the required data is provided in **Table 1** available in the folder [manual](manual/). A **template** spreadsheet (called ``DataCells1.xlxs``) is available in the [data](matlab/data) folder.
 
 <img src="manual/LARS-inputdata.png" width=800>
 
