@@ -1,8 +1,3 @@
----
-output:
-  html_document: default
-  pdf_document: default
----
 # LARS
 
 <img src="manual/LARS-logo.png">
