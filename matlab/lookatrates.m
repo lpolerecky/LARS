@@ -156,157 +156,214 @@ for ind=1:size(exp_data,1)
             fprintf(1,'WARNING: Cell biovolume, Vcell, for cell %d is not between Vmax/2 and Vmax.\nThis is not allowed, and so the value was set to avgVcell.\n',ind);
         end
 
-        %% generate randomly distributed values of x(13C) and s_end
-
         % x(13C) corresponds to the 13C atom fraction of the cell
-        % x(13C) is assumed to be *normally* distributed (mean=xt, SD=dxt)
-        xt_rnd = mvnrnd(xt, dxt^2, Nsimul); 
-
-        % determine Crand for a dividing cell
-        if abs(ds_end)<3*eps
-            Crand = Ccell*ones(Nsimul,1);
-        else
-            Crand = Cdistrib_partsync(Ccell,dCcell,Cmax,Nsimul);
-        end
-        
-        % also determine Crand for a non-dividing cell
-        Crand_nondiv = Cdistrib_nondiv(Ccell,dCcell,Nsimul);
-
-        
-        %% test values used during debugging
-        %s_end_rnd=[0.5 0.5 0.5]';
-        %xt_rnd=[0.08 0.05 0.02]';
-
-        %% STEP 1: convert x(13C) to x(13C)SE
-        % xSEt = substrate-normalized excess 13C atom fraction of the cell
-        xSEt_rnd = (xt_rnd-xini)/(xS-xini);
-        xSEt     = (xt-xini)/(xS-xini);
-        dxSEt    = dxt/(xS-xini);
-                
-        if display_individual_results
-            fprintf(1,'Finding best estimates of kC and s_ini for cell %d\n',ind)
-        end
-
-        %% find estimates of rC, kC and s_ini for each combination of xSEt, Crand and s_end
-
-        % first allocate output matrices
-        rC_A = zeros(size(xSEt_rnd));
-        rC_B = zeros(size(xSEt_rnd));
-        rC_C = zeros(size(xSEt_rnd));
-        rC_nondiv = zeros(size(xSEt_rnd));
-        kC_avg = zeros(size(xSEt_rnd));
-        s0_ini_rnd = zeros(size(xSEt_rnd));
-        s1_ini_rnd = zeros(size(xSEt_rnd));
-        ndiv0 = zeros(size(xSEt_rnd));
-        ndiv1 = zeros(size(xSEt_rnd));
-        Ca2Ci = zeros(size(xSEt_rnd));
-        Ca2Cf = zeros(size(xSEt_rnd));
-        fac   = zeros(size(xSEt_rnd));
-        Nsimul2 = length(Crand);
-        x13Ct100_0 = nan(100, Nsimul2);
-        St100_0 = nan(100, Nsimul2);    
-        x13Ct100_1 = nan(100, Nsimul2);
-        St100_1 = nan(100, Nsimul2);    
-
-        for j=1:Nsimul2
-
-            if mod(j,1000)==0
-                fprintf(1,'j=%d/%d\n',j,Nsimul2);
-            end
-
-            % choose specific values
-            xSEtj = xSEt_rnd(j);
-            C_endj = Crand(j);
-
+        if dxt<3*eps && dCcell<3*eps
+            %% if no errors in x and C are given, only the mean values of the rates can be estimated
+            
+            %% STEP 1:
+            xSEtj = (xt-xini)/(xS-xini);
+            C_endj = Ccell;
+            
             % prepare function for finding zero (based on help to fzero)
             myfun = @(rC, x, s, t) dx(rC, x, s, t, avgCcell);
             x = xSEtj;
             s = C_endj;
             t = t_incubation;    
             fun = @(rC) myfun(rC, x, s, t);
+            
+            %% STEP 2:
+            kC_avg = -1/t_incubation * log(1-xSEtj);
 
-            if xSEtj>0 && xSEtj<1
+            %% STEP 3: estimate r
 
-                %% STEP 2: convert xSE to k
-                kC_rnd = -1/t_incubation * log(1-xSEtj);
-                kC_avg(j) = kC_rnd;
-                
-                %% STEP 3: estimate r
-                
-                %% approach A
-                rC_A(j) = kC_rnd * avgCcell; % use avg C content over cell cycle
-                
-                %% approach B
-                rC_B(j) = kC_rnd * Crand_nondiv(j); % use C content of the measured cell
-                
-                %% approach C
-                rC_C(j) = fzero(fun, rC_A(j));
-                
-                %% calculate also rC for a non-dividing cell (approach often used in lit.)
-                rC_nondiv(j) = xSEtj/t_incubation * Crand_nondiv(j);
+            %% approach A
+            rC_A = kC_avg * avgCcell; % use avg C content over cell cycle
 
-                %% reconstruct cell cycle (St) and number of cell divisions during SIP incubation
-                
-                % zero-order kinetics
-                [~, x13Ct0, t0, ~, St0] = x13C_time0(rC_C(j), C_endj, avgCcell, t_incubation, xSEtj);
-                s0_ini_rnd(j) = St0(1);
-                ndiv0(j) = size(St0,2)-1;
-                
-                % first-order kinetics
-                [~, x13Ct1, t1, ~, St1] = x13C_time1(rC_A(j), C_endj, avgCcell, t_incubation);
-                s1_ini_rnd(j) = St1(1);
-                ndiv1(j) = size(St1,2)-1;
-                
-                % relate the amount of assimilated C to the initial and
-                % final C content of the cell
-                Ca2Ci(j) = rC_C(j) * t_incubation / ( (St0(1)+1)*Cmax/2 );
-                Ca2Cf(j) = rC_C(j) * t_incubation / ( (St0(end)+1)*Cmax/2 );
-                
-                % relate rC_C to rC_nondiv
-                fac(j) = rC_C(j) / rC_nondiv(j);
-                                   
-                % store x13Ct and St interpolated in 100 data points
-                % these values will be used later for plotting histograms
-                [t100, x13Ct100, St100] = interpol_CtSt(t0, x13Ct0, St0);
-                x13Ct100_0(:,j) = x13Ct100;
-                St100_0(:,j) = St100;
-                [~, x13Ct100, St100] = interpol_CtSt(t1, x13Ct1, St1);
-                x13Ct100_1(:,j) = x13Ct100;
-                St100_1(:,j) = St100;
-                                
-                %% display the results of the model prediction, if requested
-                if display_individual_results
-                    plot_individual_result(fign, t0, x13Ct0, St0, t1, x13Ct1, St1, t_incubation, xSEtj, dxSEt, j, Nsimul);
-                end
+            %% approach B
+            rC_B = kC_avg * C_endj; % use C content of the measured cell
 
+            %% approach C
+            rC_C = fzero(fun, rC_A);
+
+            %% calculate also rC for a non-dividing cell (approach often used in lit.)
+            rC_nondiv = xSEtj/t_incubation * C_endj;
+
+            %% reconstruct cell cycle (St) and number of cell divisions during SIP incubation
+
+            % zero-order kinetics
+            [~, x13Ct0, t0, ~, St0] = x13C_time0(rC_C, C_endj, avgCcell, t_incubation, xSEtj);
+            s0_ini_rnd = St0(1);
+            ndiv0 = size(St0,2)-1;
+
+            % first-order kinetics
+            [~, x13Ct1, t1, ~, St1] = x13C_time1(rC_A, C_endj, avgCcell, t_incubation);
+            s1_ini_rnd = St1(1);
+            ndiv1 = size(St1,2)-1;
+
+            % relate the amount of assimilated C to the initial and
+            % final C content of the cell
+            Ca2Ci = rC_C * t_incubation / ( (St0(1)+1)*Cmax/2 );
+            Ca2Cf = rC_C * t_incubation / ( (St0(end)+1)*Cmax/2 );
+
+            % relate rC_C to rC_nondiv
+            fac = rC_C / rC_nondiv;
+
+            fprintf(1,'Results for cell %d calculated.\n',ind);
+            
+        else
+            
+            %% Use a Monte-Carlo approach
+            
+            %% generate randomly distributed values of x(13C) and s_end
+            % x(13C) is assumed to be *normally* distributed (mean=xt, SD=dxt)
+            xt_rnd = mvnrnd(xt, dxt^2, Nsimul); 
+
+            % determine Crand for a dividing cell
+            if abs(ds_end)<3*eps
+                Crand = Ccell*ones(Nsimul,1);
             else
-                fprintf(1,'WARNING: xt cannot be negative or above xS. Data-point skipped.\n');
-                rC_A(j)         = NaN;
-                rC_B(j)         = NaN;
-                rC_C(j)         = NaN;                
-                rC_nondiv(j)    = NaN;
-                kC_avg(j)       = NaN;
-                ndiv0(j)        = NaN;
-                ndiv1(j)        = NaN;
-                s0_ini_rnd(j)   = NaN;
-                s1_ini_rnd(j)   = NaN;
-                Ca2Ci(j)        = NaN;
-                Ca2Cf(j)        = NaN;
-                fac(j)          = NaN;
+                Crand = Cdistrib_partsync(Ccell,dCcell,Cmax,Nsimul);
             end
 
-        end    
+            % also determine Crand for a non-dividing cell
+            Crand_nondiv = Cdistrib_nondiv(Ccell,dCcell,Nsimul);
 
-        %% display results for the current cell
-        if export_graphs_as_png || pause_for_each_cell
-            plot_results_for_current_cell(fign, Nsimul2, ...
-                t100, St100_0, x13Ct100_0, St100_1, x13Ct100_1, ...
-                xt_rnd, s0_ini_rnd, s1_ini_rnd, ...
-                rC_A, rC_B, rC_C, rC_nondiv, ...
-                avgCcell, Crand, Crand_nondiv, ...
-                t_incubation, xSEt, dxSEt);
+
+            %% test values used during debugging
+            %s_end_rnd=[0.5 0.5 0.5]';
+            %xt_rnd=[0.08 0.05 0.02]';
+
+            %% STEP 1: convert x(13C) to x(13C)SE
+            % xSEt = substrate-normalized excess 13C atom fraction of the cell
+            xSEt_rnd = (xt_rnd-xini)/(xS-xini);
+            xSEt     = (xt-xini)/(xS-xini);
+            dxSEt    = dxt/(xS-xini);
+
+            if display_individual_results
+                fprintf(1,'Finding best estimates of kC and s_ini for cell %d\n',ind)
+            end
+
+            %% find estimates of rC, kC and s_ini for each combination of xSEt, Crand and s_end
+
+            % first allocate output matrices
+            rC_A = zeros(size(xSEt_rnd));
+            rC_B = zeros(size(xSEt_rnd));
+            rC_C = zeros(size(xSEt_rnd));
+            rC_nondiv = zeros(size(xSEt_rnd));
+            kC_avg = zeros(size(xSEt_rnd));
+            s0_ini_rnd = zeros(size(xSEt_rnd));
+            s1_ini_rnd = zeros(size(xSEt_rnd));
+            ndiv0 = zeros(size(xSEt_rnd));
+            ndiv1 = zeros(size(xSEt_rnd));
+            Ca2Ci = zeros(size(xSEt_rnd));
+            Ca2Cf = zeros(size(xSEt_rnd));
+            fac   = zeros(size(xSEt_rnd));
+            Nsimul2 = length(Crand);
+            x13Ct100_0 = nan(100, Nsimul2);
+            St100_0 = nan(100, Nsimul2);    
+            x13Ct100_1 = nan(100, Nsimul2);
+            St100_1 = nan(100, Nsimul2);    
+
+            for j=1:Nsimul2
+
+                if mod(j,1000)==0
+                    fprintf(1,'j=%d/%d\n',j,Nsimul2);
+                end
+
+                % choose specific values
+                xSEtj = xSEt_rnd(j);
+                C_endj = Crand(j);
+
+                % prepare function for finding zero (based on help to fzero)
+                myfun = @(rC, x, s, t) dx(rC, x, s, t, avgCcell);
+                x = xSEtj;
+                s = C_endj;
+                t = t_incubation;    
+                fun = @(rC) myfun(rC, x, s, t);
+
+                if xSEtj>0 && xSEtj<1
+
+                    %% STEP 2: convert xSE to k
+                    kC_rnd = -1/t_incubation * log(1-xSEtj);
+                    kC_avg(j) = kC_rnd;
+
+                    %% STEP 3: estimate r
+
+                    %% approach A
+                    rC_A(j) = kC_rnd * avgCcell; % use avg C content over cell cycle
+
+                    %% approach B
+                    rC_B(j) = kC_rnd * Crand_nondiv(j); % use C content of the measured cell
+
+                    %% approach C
+                    rC_C(j) = fzero(fun, rC_A(j));
+
+                    %% calculate also rC for a non-dividing cell (approach often used in lit.)
+                    rC_nondiv(j) = xSEtj/t_incubation * Crand_nondiv(j);
+
+                    %% reconstruct cell cycle (St) and number of cell divisions during SIP incubation
+
+                    % zero-order kinetics
+                    [~, x13Ct0, t0, ~, St0] = x13C_time0(rC_C(j), C_endj, avgCcell, t_incubation, xSEtj);
+                    s0_ini_rnd(j) = St0(1);
+                    ndiv0(j) = size(St0,2)-1;
+
+                    % first-order kinetics
+                    [~, x13Ct1, t1, ~, St1] = x13C_time1(rC_A(j), C_endj, avgCcell, t_incubation);
+                    s1_ini_rnd(j) = St1(1);
+                    ndiv1(j) = size(St1,2)-1;
+
+                    % relate the amount of assimilated C to the initial and
+                    % final C content of the cell
+                    Ca2Ci(j) = rC_C(j) * t_incubation / ( (St0(1)+1)*Cmax/2 );
+                    Ca2Cf(j) = rC_C(j) * t_incubation / ( (St0(end)+1)*Cmax/2 );
+
+                    % relate rC_C to rC_nondiv
+                    fac(j) = rC_C(j) / rC_nondiv(j);
+
+                    % store x13Ct and St interpolated in 100 data points
+                    % these values will be used later for plotting histograms
+                    [t100, x13Ct100, St100] = interpol_CtSt(t0, x13Ct0, St0);
+                    x13Ct100_0(:,j) = x13Ct100;
+                    St100_0(:,j) = St100;
+                    [~, x13Ct100, St100] = interpol_CtSt(t1, x13Ct1, St1);
+                    x13Ct100_1(:,j) = x13Ct100;
+                    St100_1(:,j) = St100;
+
+                    %% display the results of the model prediction, if requested
+                    if display_individual_results
+                        plot_individual_result(fign, t0, x13Ct0, St0, t1, x13Ct1, St1, t_incubation, xSEtj, dxSEt, j, Nsimul);
+                    end
+
+                else
+                    fprintf(1,'WARNING: xt cannot be negative or above xS. Data-point skipped.\n');
+                    rC_A(j)         = NaN;
+                    rC_B(j)         = NaN;
+                    rC_C(j)         = NaN;                
+                    rC_nondiv(j)    = NaN;
+                    kC_avg(j)       = NaN;
+                    ndiv0(j)        = NaN;
+                    ndiv1(j)        = NaN;
+                    s0_ini_rnd(j)   = NaN;
+                    s1_ini_rnd(j)   = NaN;
+                    Ca2Ci(j)        = NaN;
+                    Ca2Cf(j)        = NaN;
+                    fac(j)          = NaN;
+                end
+
+            end    
+
+            %% display results for the current cell
+            if export_graphs_as_png || pause_for_each_cell
+                plot_results_for_current_cell(fign, Nsimul2, ...
+                    t100, St100_0, x13Ct100_0, St100_1, x13Ct100_1, ...
+                    xt_rnd, s0_ini_rnd, s1_ini_rnd, ...
+                    rC_A, rC_B, rC_C, rC_nondiv, ...
+                    avgCcell, Crand, Crand_nondiv, ...
+                    t_incubation, xSEt, dxSEt);
+            end
         end
-
+        
         %% store results for the current cell in the output array
         %% average over the cell cycle
         T(ind,1) = mean(kC_avg,'omitnan');
@@ -335,7 +392,7 @@ for ind=1:size(exp_data,1)
         T(ind,19) = mean(Ca2Cf,'omitnan');
         
         %% make a pause, if requested
-        if pause_for_each_cell
+        if pause_for_each_cell && (dxt>3*eps || dCcell>3*eps)
             fprintf(1,'Summary of results for cell %d displayed in figure %d.\nComment: %s\n',ind,fign,comments{ind});
             input('Press enter to continue (or Ctrl+c to break).');
         else
@@ -343,7 +400,7 @@ for ind=1:size(exp_data,1)
         end
 
         %% export the graphs for the current cell as PNG
-        if export_graphs_as_png
+        if export_graphs_as_png && (dxt>3*eps || dCcell>3*eps)
            [~,b,~] = fileparts(input_xlsx_filename);
            outpng = sprintf('png%c%s_%03d.png', filesep, b, ind);
            print(fign,outpng, '-dpng','-r150');
@@ -354,11 +411,12 @@ for ind=1:size(exp_data,1)
         
         % estimate kC by step 2;
         xSEt        = (xt-xini)/(xS-xini);
+        if isnan(dxt), dxt = 0; end
         dxSEt       = dxt/(xS-xini);
         kC          = -1/t_incubation * log(1-xSEt);
         dkC         = 1/t_incubation * dxSEt / (1-xSEt);
         
-        % if avgCcell is available, estimate r_A
+        % if only avgCcell is available, estimate r_A
         if ~isnan(avgCcell)
             rC_A      = kC * avgCcell;
             drC_A     = dxSEt/xSEt * rC_A; % error propagation formula
@@ -368,17 +426,19 @@ for ind=1:size(exp_data,1)
             drC_nondiv = NaN;
         end
         
-        % if Ccell is available, estimate r_B and r_nondiv
+        % if only Ccell is available, estimate r_B and r_nondiv
         if ~isnan(Ccell)
             rC_A    = NaN;
             drC_A   = NaN;
             rC_B    = kC * Ccell;
+            if isnan(dCcell), dCcell = 0; end
             drC_B   = sqrt((dxSEt/xSEt)^2 + (dCcell/Ccell)^2) * rC_B; % error propagation formula
             rC_nondiv  = xSEt/t_incubation * Ccell;
             drC_nondiv = sqrt((dxSEt/xSEt)^2 + (dCcell/Ccell)^2) * rC_nondiv; % error propagation formula            
         end
            
-        % if Ccell is available, estimate r_B and r_nondiv
+        % if neither Ccell nor avgCcell is available, only kC can be
+        % estimated (calculated above)
         if isnan(Ccell) && isnan(avgCcell)
             rC_A    = NaN;
             drC_A   = NaN;
