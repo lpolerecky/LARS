@@ -1,3 +1,8 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
 # LARS
 
 <img src="manual/LARS-logo.png">
@@ -5,6 +10,8 @@
 **Look@Rates** is a Matlab function for calculating *substrate assimilation rates* in cells from their isotopic composition determined by nanoSIMS. The function implements calculation approaches described in the manuscript
 
 - Polerecky et al. (2021) Calculation and interpretation of substrate assimilation rates in microbial cells based on isotopic composition data obtained by nanoSIMS. Submitted to *Frontiers in Microbiology*.
+
+Please contact the developer in case you encounter problems when running the function or if you find an error or a bug.
 
 ## Install Look@Rates
 
@@ -55,17 +62,21 @@
 
 4. Alternatively, you can change the default values of the input parameters by editing the ``lookatrates.m`` file in the Matlab editor and then proceed as explained in point 2. The default values are specified on line 28 (or thereabout).
 
+### Test runs
+
+To check that everything works well, use ``DataCells1.xlsx``, ``DataCells2.xlsx``, and ``DataCells3.xlsx`` as input, and compare your output to the output in ``DataCells1-*.xlsx``, ``DataCells2-*.xlsx``, and ``DataCells3-*.xlsx``, respectively. These data files are available in the [data](matlab/data) folder.
+
 ## Calculation approach
 
-Consult the manuscript and **Table 1** ([manual](manual/)) to become familiar with the meaning of the different parameters and variables used in the description below. Note that the description assumes assimilation of carbon (C), but the calculation method is applicable to any other element. 
+Consult the manuscript above and **Table 1** in the [manual](manual/) folder to become familiar with the meaning of the different parameters and variables used in the description below. Note that the description assumes assimilation of carbon (C), but the calculation method is applicable to any other element. 
 
 The general approach employed in **Look@Rates** is based on a Monte-Carlo method. It proceeds according to the following steps.
 
-1. C content of the cell is calculated as C = &#961; &#183; V, uncertainty of the C content is calculated as &#916;C = &#961; &#183; &#916;V, and the average C content of the cell is calculated as &#10216;C&#10217; = &#961; &#183; &#10216;V&#10217;, where V, &#916;V, &#10216;V&#10217;, and &#961; are provided as input (see **Table 1**).
+1. C content of the cell is calculated as C = &#961; &#183; V, uncertainty of the C content is calculated as &#916;C = &#961; &#183; &#916;V, and the average C content of the cell is calculated as &#10216;C&#10217; = &#961; &#183; &#10216;V&#10217;, where V, &#916;V, &#10216;V&#10217;, and &#961; are provided as input (see **Table 1**). See **Important notes** below if one or more of these parameters cannot be constrained by experimental data.
 
-2. <sup>13</sup>C atom fraction of the cell is sampled from a normal distribution: x<sub>j</sub> = N(mean=x, SD=&#916;x), where x and  &#916;x is provided as input (see **Table 1**).
+2. <sup>13</sup>C atom fraction of the cell, x<sub>j</sub>, is sampled from a normal distribution: x<sub>j</sub> = N(mean=x, SD=&#916;x), where x and  &#916;x is provided as input (see **Table 1**).
 
-3. C content of the cell is sampled from a normal distribution: C<sub>j</sub> = N(mean=C, SD=&#916;C). 
+3. C content of the cell, C<sub>j</sub>, is sampled from a distribution describing cells with **partially synchronized cell cycles** (see Eq. 17 in the manuscript). If &#916;C is not too large and C is not too close to the critical value of C<sub>max</sub>/2 or C<sub>max</sub> (where C<sub>max</sub> is calculated from &#10216;C&#10217; as described in the manuscript), this distribution is essentially a normal distribution, i.e., C<sub>j</sub> = N(mean=C, SD=&#916;C).
 
 4. The substrate-normalized <sup>13</sup>C atom fraction of the cell is calculated as 
 
@@ -89,6 +100,8 @@ The general approach employed in **Look@Rates** is based on a Monte-Carlo method
 
     **Approach NON-DIV** (does not account for cell division): r<sub>j</sub> = (x<sub>S,j</sub><sup>E</sup> &#183; C<sub>j</sub>)/t (later denoted as *avg-SIP-nondiv*)
 
+   See the manuscript above for the interpretation of the assimilation rates calculated by the different approaches.
+   
 7. Steps 2-6 are repeated for N=``Nsimul`` randomly sampled values of x<sub>j</sub> and C<sub>j</sub>, yielding N=``Nsimul`` values of predicted rates, r<sub>j</sub>. Mean and SD are calculated based on these values, separately for each calculation approach.
 
 8. Results for the current cell are displayed and exported in a PNG file. Example is shown here:
@@ -104,7 +117,7 @@ The general approach employed in **Look@Rates** is based on a Monte-Carlo method
 
 9. Steps 1-8 are repeated for all cells in the input file.
 
-10. Mean and SD values of the calculated rates are exported. Consult **Table 2** ([manual](manual/)) for the description of the exported values.
+10. Mean and SD values of the calculated rates are exported. Consult **Table 2** in the [manual](manual/) folder for the description of the exported values.
 
 ## Important notes
 
